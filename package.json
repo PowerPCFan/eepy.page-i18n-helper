@@ -1,0 +1,84 @@
+{
+    "name": "eepy-page-i18n-helper",
+    "displayName": "eepy.page i18n Helper",
+    "description": "VSCode extension to make the i18n process easier",
+    "version": "0.1.0",
+    "publisher": "powerpcfan",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Programming Languages",
+        "Other"
+    ],
+    "keywords": [
+        "i18n",
+        "inlay-hints",
+        "svelte",
+        "eepy.page",
+        "localization"
+    ],
+    "activationEvents": [
+        "onLanguage:svelte",
+        "onLanguage:typescript",
+        "onLanguage:javascript",
+        "onLanguage:python"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "configuration": {
+            "title": "eepy.page i18n",
+            "properties": {
+                "eepyI18n.displayLanguage": {
+                    "type": "string",
+                    "default": "en",
+                    "description": "Language to display in inlay hints and edit via F2 rename (e.g. en, fi, es)."
+                },
+                "eepyI18n.localesPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom path to locales folder. If left empty, automatically searches workspace and ../eepy.page-i18n/locales."
+                },
+                "eepyI18n.inlayHints.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable or disable translation inlay hints next to t(...) keys."
+                },
+                "eepyI18n.inlayHints.maxLength": {
+                    "type": "number",
+                    "default": 45,
+                    "description": "Maximum character length of the inlay hint before truncating with '...'."
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "eepyI18n.changeLanguage",
+                "title": "eepy.page i18n: Switch Inlay Display Language",
+                "category": "eepy.page i18n"
+            },
+            {
+                "command": "eepyI18n.editTranslation",
+                "title": "eepy.page i18n: Edit Translation Value for Key",
+                "category": "eepy.page i18n"
+            },
+            {
+                "command": "eepyI18n.refresh",
+                "title": "eepy.page i18n: Reload Translation Catalogs",
+                "category": "eepy.page i18n"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run build",
+        "compile": "tsc -p ./ --noEmit",
+        "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+        "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "@types/vscode": "^1.85.0",
+        "esbuild": "^0.20.0",
+        "typescript": "^5.3.3"
+    }
+}
