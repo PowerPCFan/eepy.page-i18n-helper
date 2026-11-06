@@ -52,7 +52,7 @@ export class I18nInlayHintsProvider implements vscode.InlayHintsProvider {
                 if (displayLanguage !== "en") {
                     const fallback = this.catalogManager.getTranslation(match.rawKey, "en");
                     if (fallback) {
-                        displayText = `${fallback.value} (en)`;
+                        displayText = fallback.value;
                     } else {
                         isMissing = true;
                     }

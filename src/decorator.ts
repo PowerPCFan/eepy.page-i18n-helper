@@ -69,8 +69,9 @@ export class I18nDecoratorManager {
         const config = vscode.workspace.getConfiguration("eepyI18n");
         const dimCalls = config.get<boolean>("dimCalls", true);
         const hintStyle = config.get<string>("hintStyle", "decoration");
-        const hintColor = config.get<string>("hintColor", "#cccccc");
-        const missingColor = config.get<string>("missingColor", "#e06c75");
+        const hintColor = config.get<string>("hintColor", "#d4d4d4");
+        const missingColor = config.get<string>("missingColor", "#F14C4C");
+        const warningColor = config.get<string>("warningColor", "#CCA700");
         const displayLanguage = config.get<string>("displayLanguage", "en");
         const maxLength = config.get<number>("inlayHints.maxLength", 45);
 
@@ -105,7 +106,7 @@ export class I18nDecoratorManager {
                 if (displayLanguage !== "en") {
                     const fallback = this.catalogManager.getTranslation(match.rawKey, "en");
                     if (fallback && fallback.value) {
-                        displayText = `${fallback.value} (en)`;
+                        displayText = fallback.value;
                         isUntranslated = true;
                     } else {
                         isMissing = true;
@@ -149,6 +150,30 @@ export class I18nDecoratorManager {
                                 contentText: ` : [missing]`,
                                 color: missingColor,
                                 fontStyle: "italic",
+                                fontWeight: "normal"
+                            }
+                        },
+                        hoverMessage: md
+                    });
+                } else if (isUntranslated) {
+                    const singleLine = displayText.replace(/\s+/g, " ").trim();
+                    const preview =
+                        singleLine.length > maxLength
+                            ? `${singleLine.slice(0, maxLength - 3)}...`
+                            : singleLine;
+
+                    const md = new vscode.MarkdownString();
+                    md.appendMarkdown(`\u26A0 **Untranslated in [${displayLanguage}]** (falling back to English):\n\n`);
+                    md.appendCodeblock(displayText, "text");
+                    md.appendMarkdown(`\n\n*Press **F2** on the key to translate this into [${displayLanguage}].*`);
+
+                    hintOptions.push({
+                        range: match.keyRange,
+                        renderOptions: {
+                            after: {
+                                contentText: ` : "${preview}"`,
+                                color: warningColor,
+                                fontStyle: "normal",
                                 fontWeight: "normal"
                             }
                         },

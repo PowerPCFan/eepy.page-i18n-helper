@@ -67,8 +67,13 @@
                 },
                 "eepyI18n.missingColor": {
                     "type": "string",
-                    "default": "#e06c75",
-                    "description": "Color for missing translation indicator ([missing])."
+                    "default": "#F14C4C",
+                    "description": "Color for missing translation indicator ([missing]) and errors."
+                },
+                "eepyI18n.warningColor": {
+                    "type": "string",
+                    "default": "#CCA700",
+                    "description": "Color for untranslated hints falling back to English (warning)."
                 },
                 "eepyI18n.localesPath": {
                     "type": "string",
