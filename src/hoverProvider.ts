@@ -32,11 +32,11 @@ export class I18nHoverProvider implements vscode.HoverProvider {
         } else {
             const enFallback = displayLanguage !== "en" ? this.catalogManager.getTranslation(match.rawKey, "en") : null;
             if (enFallback) {
-                md.appendMarkdown(`\u26A0 **Missing in [${displayLanguage}]** (showing fallback from [en] \`${enFallback.namespace}.json\`):\n\n`);
+                md.appendMarkdown(`\u26A0 **Untranslated in [${displayLanguage}]** (falling back to English \`${enFallback.namespace}.json\`):\n\n`);
                 md.appendCodeblock(enFallback.value, "text");
-                md.appendMarkdown(`\n\n*Press **F2** to define the [${displayLanguage}] translation.*`);
+                md.appendMarkdown(`\n\n*Press **F2** on the key to translate this into [${displayLanguage}].*`);
             } else {
-                md.appendMarkdown(`\u26A0 **Missing translation**: Key \`${match.rawKey}\` was not found in catalogs.\n\n*Press **F2** to create it.*`);
+                md.appendMarkdown(`\u26A0 **Missing translation**: Key \`${match.rawKey}\` was not found in catalogs.\n\n*Press **F2** on the key to define it.*`);
             }
         }
 

@@ -138,11 +138,6 @@ export class I18nDecoratorManager {
 
             if (hintStyle === "decoration") {
                 if (isMissing) {
-                    const md = new vscode.MarkdownString();
-                    md.appendMarkdown(
-                        `\u26A0 **Missing translation**: Key \`${match.rawKey}\` not found in \`${displayLanguage}\` catalogs.\n\n*Press **F2** on the key to define this translation.*`
-                    );
-
                     missingOptions.push({
                         range: match.keyRange,
                         renderOptions: {
@@ -152,8 +147,7 @@ export class I18nDecoratorManager {
                                 fontStyle: "italic",
                                 fontWeight: "normal"
                             }
-                        },
-                        hoverMessage: md
+                        }
                     });
                 } else if (isUntranslated) {
                     const singleLine = displayText.replace(/\s+/g, " ").trim();
@@ -161,11 +155,6 @@ export class I18nDecoratorManager {
                         singleLine.length > maxLength
                             ? `${singleLine.slice(0, maxLength - 3)}...`
                             : singleLine;
-
-                    const md = new vscode.MarkdownString();
-                    md.appendMarkdown(`\u26A0 **Untranslated in [${displayLanguage}]** (falling back to English):\n\n`);
-                    md.appendCodeblock(displayText, "text");
-                    md.appendMarkdown(`\n\n*Press **F2** on the key to translate this into [${displayLanguage}].*`);
 
                     hintOptions.push({
                         range: match.keyRange,
@@ -176,8 +165,7 @@ export class I18nDecoratorManager {
                                 fontStyle: "normal",
                                 fontWeight: "normal"
                             }
-                        },
-                        hoverMessage: md
+                        }
                     });
                 } else {
                     const singleLine = displayText.replace(/\s+/g, " ").trim();
@@ -185,11 +173,6 @@ export class I18nDecoratorManager {
                         singleLine.length > maxLength
                             ? `${singleLine.slice(0, maxLength - 3)}...`
                             : singleLine;
-
-                    const md = new vscode.MarkdownString();
-                    md.appendMarkdown(`**[${displayLanguage}]** \`${entry?.namespace || "common"}.json\`\n\n`);
-                    md.appendCodeblock(displayText, "text");
-                    md.appendMarkdown(`\n\n*Press **F2** on the key to edit this translation in [${displayLanguage}].*`);
 
                     hintOptions.push({
                         range: match.keyRange,
@@ -200,8 +183,7 @@ export class I18nDecoratorManager {
                                 fontStyle: "normal",
                                 fontWeight: "normal"
                             }
-                        },
-                        hoverMessage: md
+                        }
                     });
                 }
             }
