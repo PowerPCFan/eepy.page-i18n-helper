@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { parseTranslationKey } from "./keyFinder";
 
 export interface TranslationEntry {
     value: string;
@@ -12,7 +11,7 @@ export interface TranslationEntry {
 
 export class CatalogManager {
     private localesDir: string | null = null;
-    private catalogs: Map<string, Map<string, any>> = new Map(); // locale -> namespace -> json
+    private catalogs: Map<string, Map<string, any>> = new Map();
     private _onDidChange = new vscode.EventEmitter<void>();
     public readonly onDidChange = this._onDidChange.event;
     private watcher: vscode.FileSystemWatcher | null = null;
@@ -37,15 +36,20 @@ export class CatalogManager {
         }
         try {
             const entries = fs.readdirSync(this.localesDir, { withFileTypes: true });
-            return entries
+            const langs = entries
                 .filter(e => (e.isDirectory() || e.isSymbolicLink()) && !e.name.startsWith("."))
                 .map(e => e.name);
+            return langs.length > 0 ? langs : ["en"];
         } catch {
             return ["en"];
         }
     }
 
     public async reloadCatalogs(): Promise<void> {
+        if (!this.localesDir) {
+            this.localesDir = await this.resolveLocalesDir();
+        }
+
         this.catalogs.clear();
         if (!this.localesDir || !fs.existsSync(this.localesDir)) {
             return;
@@ -82,28 +86,60 @@ export class CatalogManager {
     }
 
     public getTranslation(rawKey: string, targetLocale: string): TranslationEntry | null {
-        const { namespace, keyPath } = parseTranslationKey(rawKey);
+        if (!this.catalogs.has(targetLocale) && this.localesDir) {
+            return null;
+        }
+
         const langMap = this.catalogs.get(targetLocale);
         if (!langMap) {
             return null;
         }
 
-        if (namespace) {
-            const data = langMap.get(namespace);
+        const colonIdx = rawKey.indexOf(":");
+        if (colonIdx !== -1) {
+            const ns = rawKey.slice(0, colonIdx);
+            const keyPath = rawKey.slice(colonIdx + 1).split(".").filter(Boolean);
+            const data = langMap.get(ns);
             if (data) {
-                const val = this.extractValue(data, keyPath);
-                if (typeof val === "string") {
-                    const filePath = path.join(this.localesDir!, targetLocale, `${namespace}.json`);
-                    return { value: val, filePath, keyPath, namespace };
-                }
-            }
-        } else {
-            for (const [ns, data] of langMap.entries()) {
                 const val = this.extractValue(data, keyPath);
                 if (typeof val === "string") {
                     const filePath = path.join(this.localesDir!, targetLocale, `${ns}.json`);
                     return { value: val, filePath, keyPath, namespace: ns };
                 }
+            }
+        }
+
+        const parts = rawKey.split(".").filter(Boolean);
+        if (parts.length === 0) {
+            return null;
+        }
+
+        const first = parts[0];
+        if (langMap.has(first)) {
+            const data = langMap.get(first);
+            const keyPath = parts.slice(1);
+            const val = this.extractValue(data, keyPath);
+            if (typeof val === "string") {
+                const filePath = path.join(this.localesDir!, targetLocale, `${first}.json`);
+                return { value: val, filePath, keyPath, namespace: first };
+            }
+        }
+
+        const commonData = langMap.get("common");
+        if (commonData) {
+            const val = this.extractValue(commonData, parts);
+            if (typeof val === "string") {
+                const filePath = path.join(this.localesDir!, targetLocale, "common.json");
+                return { value: val, filePath, keyPath: parts, namespace: "common" };
+            }
+        }
+
+        for (const [ns, data] of langMap.entries()) {
+            if (ns === first || ns === "common") continue;
+            const val = this.extractValue(data, parts);
+            if (typeof val === "string") {
+                const filePath = path.join(this.localesDir!, targetLocale, `${ns}.json`);
+                return { value: val, filePath, keyPath: parts, namespace: ns };
             }
         }
 
@@ -115,15 +151,25 @@ export class CatalogManager {
         targetLocale: string,
         newValue: string
     ): Promise<boolean> {
-        const entry = this.getTranslation(rawKey, targetLocale);
+        let entry = this.getTranslation(rawKey, targetLocale);
         if (!entry) {
-            const enEntry = this.getTranslation(rawKey, "en");
-            if (!enEntry || !this.localesDir) {
+            if (!this.localesDir) {
                 return false;
             }
 
-            const targetFilePath = path.join(this.localesDir, targetLocale, `${enEntry.namespace}.json`);
-            return this.writeJsonValue(targetFilePath, enEntry.keyPath, newValue);
+            const enEntry = this.getTranslation(rawKey, "en");
+            if (enEntry) {
+                const targetFilePath = path.join(this.localesDir, targetLocale, `${enEntry.namespace}.json`);
+                return this.writeJsonValue(targetFilePath, enEntry.keyPath, newValue);
+            }
+
+            const parts = rawKey.split(".").filter(Boolean);
+            const first = parts[0];
+            const hasNs = this.catalogs.get(targetLocale)?.has(first) || this.catalogs.get("en")?.has(first);
+            const ns = hasNs ? first : "common";
+            const keyPath = hasNs ? parts.slice(1) : parts;
+            const targetFilePath = path.join(this.localesDir, targetLocale, `${ns}.json`);
+            return this.writeJsonValue(targetFilePath, keyPath, newValue);
         }
 
         return this.writeJsonValue(entry.filePath, entry.keyPath, newValue);
@@ -131,6 +177,11 @@ export class CatalogManager {
 
     private writeJsonValue(filePath: string, keyPath: string[], newValue: string): boolean {
         try {
+            const dir = path.dirname(filePath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+
             let json: any = {};
             if (fs.existsSync(filePath)) {
                 json = JSON.parse(fs.readFileSync(filePath, "utf-8"));
@@ -167,7 +218,7 @@ export class CatalogManager {
         return cur;
     }
 
-    private async resolveLocalesDir(): Promise<string | null> {
+    public async resolveLocalesDir(documentUri?: vscode.Uri): Promise<string | null> {
         const config = vscode.workspace.getConfiguration("eepyI18n");
         const customPath = config.get<string>("localesPath");
 
@@ -176,22 +227,45 @@ export class CatalogManager {
                 ? customPath
                 : path.resolve(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "", customPath);
             if (fs.existsSync(resolved)) {
-                return resolved;
+                try {
+                    return fs.realpathSync(resolved);
+                } catch {
+                    return resolved;
+                }
             }
         }
+
+        const candidateDirs: string[] = [];
 
         const folders = vscode.workspace.workspaceFolders || [];
         for (const folder of folders) {
-            const candidate = path.join(folder.uri.fsPath, "locales");
-            if (fs.existsSync(candidate)) {
-                return candidate;
+            candidateDirs.push(path.join(folder.uri.fsPath, "locales"));
+            candidateDirs.push(path.resolve(folder.uri.fsPath, "../eepy.page-i18n/locales"));
+            candidateDirs.push(path.resolve(folder.uri.fsPath, "../../eepy.page-i18n/locales"));
+        }
+
+        if (documentUri && documentUri.scheme === "file") {
+            let curDir = path.dirname(documentUri.fsPath);
+            for (let i = 0; i < 6; i++) {
+                candidateDirs.push(path.join(curDir, "locales"));
+                candidateDirs.push(path.resolve(curDir, "../eepy.page-i18n/locales"));
+                candidateDirs.push(path.resolve(curDir, "eepy.page-i18n/locales"));
+                const parent = path.dirname(curDir);
+                if (parent === curDir) break;
+                curDir = parent;
             }
         }
 
-        for (const folder of folders) {
-            const siblingCandidate = path.resolve(folder.uri.fsPath, "../eepy.page-i18n/locales");
-            if (fs.existsSync(siblingCandidate)) {
-                return siblingCandidate;
+        for (const cand of candidateDirs) {
+            if (fs.existsSync(cand)) {
+                const enSubdir = path.join(cand, "en");
+                if (fs.existsSync(enSubdir)) {
+                    try {
+                        return fs.realpathSync(cand);
+                    } catch {
+                        return cand;
+                    }
+                }
             }
         }
 

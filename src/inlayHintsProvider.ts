@@ -24,6 +24,12 @@ export class I18nInlayHintsProvider implements vscode.InlayHintsProvider {
         _token: vscode.CancellationToken
     ): vscode.InlayHint[] {
         const config = vscode.workspace.getConfiguration("eepyI18n");
+        const hintStyle = config.get<string>("hintStyle", "decoration");
+
+        if (hintStyle !== "native") {
+            return [];
+        }
+
         const enabled = config.get<boolean>("inlayHints.enabled", true);
         if (!enabled) {
             return [];
@@ -63,7 +69,7 @@ export class I18nInlayHintsProvider implements vscode.InlayHintsProvider {
                 );
                 hint.paddingLeft = true;
                 hint.tooltip = new vscode.MarkdownString(
-                    `⚠️ **Missing translation**: Key \`${match.rawKey}\` not found in \`${displayLanguage}\` catalogs.`
+                   `\u26A0 **Missing translation**: Key \`${match.rawKey}\` not found in \`${displayLanguage}\` catalogs.`
                 );
                 hints.push(hint);
                 continue;
@@ -85,7 +91,7 @@ export class I18nInlayHintsProvider implements vscode.InlayHintsProvider {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**[${displayLanguage}]** \`${entry?.namespace || "common"}.json\`\n\n`);
             md.appendCodeblock(displayText, "text");
-            md.appendMarkdown(`\n\n*Press **F2** on the key to edit this translation in ${displayLanguage}.*`);
+            md.appendMarkdown(`\n\n*Press **F2** on the key to edit this translation in [${displayLanguage}].*`);
             hint.tooltip = md;
 
             hints.push(hint);

@@ -1,9 +1,13 @@
 {
     "name": "eepy-page-i18n-helper",
     "displayName": "eepy.page i18n Helper",
-    "description": "VSCode extension to make the i18n process easier",
-    "version": "0.1.0",
-    "publisher": "powerpcfan",
+    "description": "VSCode extension for seamless eepy.page i18n development with dimmed calls, crisp inline translation previews, and F2 editing.",
+    "version": "1.0.0",
+    "publisher": "PowerPCFan",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/PowerPCFan/eepy.page-i18n-helper.git"
+    },
     "engines": {
         "vscode": "^1.85.0"
     },
@@ -22,6 +26,8 @@
         "onLanguage:svelte",
         "onLanguage:typescript",
         "onLanguage:javascript",
+        "onLanguage:typescriptreact",
+        "onLanguage:javascriptreact",
         "onLanguage:python"
     ],
     "main": "./dist/extension.js",
@@ -32,7 +38,37 @@
                 "eepyI18n.displayLanguage": {
                     "type": "string",
                     "default": "en",
-                    "description": "Language to display in inlay hints and edit via F2 rename (e.g. en, fi, es)."
+                    "description": "Language to display in inline hints and edit via F2 rename (e.g. en, fi, es, it)."
+                },
+                "eepyI18n.dimCalls": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Dim t(...) calls and their parameters to a muted dark gray so the code stays readable without visual clutter."
+                },
+                "eepyI18n.callColor": {
+                    "type": "string",
+                    "default": "#6e7681",
+                    "description": "Color used to dim t(...) calls and their parameters (muted dark gray)."
+                },
+                "eepyI18n.hintStyle": {
+                    "type": "string",
+                    "enum": [
+                        "decoration",
+                        "native",
+                        "none"
+                    ],
+                    "default": "decoration",
+                    "description": "How translation previews are rendered: 'decoration' (uses brighter white #d4d4d4 text), 'native' (VS Code InlayHints), or 'none'."
+                },
+                "eepyI18n.hintColor": {
+                    "type": "string",
+                    "default": "#d4d4d4",
+                    "description": "Color for inline translation hints (brighter HTML-style white)."
+                },
+                "eepyI18n.missingColor": {
+                    "type": "string",
+                    "default": "#e06c75",
+                    "description": "Color for missing translation indicator ([missing])."
                 },
                 "eepyI18n.localesPath": {
                     "type": "string",
@@ -42,19 +78,19 @@
                 "eepyI18n.inlayHints.enabled": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Enable or disable translation inlay hints next to t(...) keys."
+                    "description": "Enable or disable translation hints next to t(...) keys."
                 },
                 "eepyI18n.inlayHints.maxLength": {
                     "type": "number",
                     "default": 45,
-                    "description": "Maximum character length of the inlay hint before truncating with '...'."
+                    "description": "Maximum character length of the translation preview before truncating with '...'."
                 }
             }
         },
         "commands": [
             {
                 "command": "eepyI18n.changeLanguage",
-                "title": "eepy.page i18n: Switch Inlay Display Language",
+                "title": "eepy.page i18n: Switch Display Language",
                 "category": "eepy.page i18n"
             },
             {
@@ -73,7 +109,8 @@
         "vscode:prepublish": "npm run build",
         "compile": "tsc -p ./ --noEmit",
         "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
-        "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch"
+        "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+        "package": "npx --yes @vscode/vsce package --skip-license --no-dependencies --allow-missing-repository"
     },
     "devDependencies": {
         "@types/node": "^20.11.0",

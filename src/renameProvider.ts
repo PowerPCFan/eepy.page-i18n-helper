@@ -19,7 +19,8 @@ export class I18nRenameProvider implements vscode.RenameProvider {
         const displayLanguage = config.get<string>("displayLanguage", "en");
 
         const entry = this.catalogManager.getTranslation(match.rawKey, displayLanguage);
-        const placeholder = entry?.value ?? match.rawKey;
+        const enFallback = displayLanguage !== "en" ? this.catalogManager.getTranslation(match.rawKey, "en") : null;
+        const placeholder = entry?.value ?? enFallback?.value ?? match.rawKey;
 
         return {
             range: match.keyRange,
@@ -55,7 +56,7 @@ export class I18nRenameProvider implements vscode.RenameProvider {
         }
 
         vscode.window.showInformationMessage(
-            `✔ Updated [${displayLanguage}] translation for "${match.rawKey}" to "${newName}".`
+            `Updated [${displayLanguage}] translation for "${match.rawKey}".`
         );
 
         return new vscode.WorkspaceEdit();
@@ -67,7 +68,7 @@ export class I18nRenameProvider implements vscode.RenameProvider {
     ): TranslationKeyMatch | null {
         const matches = findTranslationKeysInDocument(document);
         for (const match of matches) {
-            if (match.keyRange.contains(position) || match.range.contains(position)) {
+            if (match.keyRange.contains(position) || match.callRange.contains(position)) {
                 return match;
             }
         }

@@ -2,34 +2,18 @@ import * as vscode from "vscode";
 
 export interface TranslationKeyMatch {
     rawKey: string;
-    namespace?: string;
-    keyPath: string[];
-    range: vscode.Range;
+    callRange: vscode.Range;
     keyRange: vscode.Range;
 }
 
-const T_CALL_REGEX = /(?:(?:\$|\b(?:i18n|requestI18n|serverI18n|pkg)\.)?t\s*\(\s*)(['"`])([^'"`\r\n]+)\1/g;
-
-export function parseTranslationKey(rawKey: string): { namespace?: string; keyPath: string[] } {
-    let namespace: string | undefined;
-    let pathPart = rawKey;
-
-    if (rawKey.includes(":")) {
-        const colonIndex = rawKey.indexOf(":");
-        namespace = rawKey.slice(0, colonIndex);
-        pathPart = rawKey.slice(colonIndex + 1);
-    }
-
-    const keyPath = pathPart.split(".").filter(Boolean);
-    return { namespace, keyPath };
-}
+const T_CALL_PREFIX_REGEX = /(?:(?:\$|\b[a-zA-Z0-9_$]+\.)?\bt\s*\(\s*)(['"`])([^'"`\r\n]+)\1/g;
 
 export function findTranslationKeysInDocument(document: vscode.TextDocument): TranslationKeyMatch[] {
     const text = document.getText();
     const matches: TranslationKeyMatch[] = [];
 
     let match: RegExpExecArray | null;
-    while ((match = T_CALL_REGEX.exec(text)) !== null) {
+    while ((match = T_CALL_PREFIX_REGEX.exec(text)) !== null) {
         const fullMatch = match[0];
         const quote = match[1];
         const rawKey = match[2].trim();
@@ -39,12 +23,39 @@ export function findTranslationKeysInDocument(document: vscode.TextDocument): Tr
         }
 
         const matchStartOffset = match.index;
-        const keyStartOffset = matchStartOffset + fullMatch.indexOf(quote) + 1;
-        const keyEndOffset = keyStartOffset + rawKey.length;
+        const keyStartOffset = matchStartOffset + fullMatch.indexOf(quote);
+        const keyEndOffset = keyStartOffset + rawKey.length + 2;
 
-        const range = new vscode.Range(
+        let depth = 1;
+        let callEndOffset = matchStartOffset + fullMatch.length;
+        let inStr: string | null = null;
+
+        while (callEndOffset < text.length && depth > 0) {
+            const char = text[callEndOffset];
+            if (inStr) {
+                if (char === "\\" && callEndOffset + 1 < text.length) {
+                    callEndOffset += 2;
+                    continue;
+                }
+                if (char === inStr) {
+                    inStr = null;
+                }
+            } else {
+                if (char === "'" || char === '"' || char === "`") {
+                    inStr = char;
+                } else if (char === "(") {
+                    depth++;
+                } else if (char === ")") {
+                    depth--;
+                }
+            }
+            callEndOffset++;
+            if (callEndOffset - matchStartOffset > 800) break;
+        }
+
+        const callRange = new vscode.Range(
             document.positionAt(matchStartOffset),
-            document.positionAt(matchStartOffset + fullMatch.length)
+            document.positionAt(callEndOffset)
         );
 
         const keyRange = new vscode.Range(
@@ -52,13 +63,9 @@ export function findTranslationKeysInDocument(document: vscode.TextDocument): Tr
             document.positionAt(keyEndOffset)
         );
 
-        const { namespace, keyPath } = parseTranslationKey(rawKey);
-
         matches.push({
             rawKey,
-            namespace,
-            keyPath,
-            range,
+            callRange,
             keyRange
         });
     }
